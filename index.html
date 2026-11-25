@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Scout Daily</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a buyer's morning deal sheet; calm, exact, money-literate.
+   IDEA: a broker's deal ticket; every listing priced against its cash flow.
+   PICTURE: the multiple, large, on a gauge that shows the 2–4× target band.
+   COLOUR and TYPE: ledger green on cool paper, brass for out-of-range; IBM Plex Sans + Condensed numerals.
+   LAYOUT: finding as title, filters as one calm panel, then a grid of tickets. */
+:root{color-scheme:light dark;
+--bg:light-dark(#F2F4F7,#0D1422);--card:light-dark(#fff,#151F31);--sunk:light-dark(#E6EAF0,#1C2840);
+--ink:light-dark(#14213D,#E9EDF4);--ink2:light-dark(#4C586E,#A9B3C6);--ink3:light-dark(#7B869B,#7D88A1);
+--line:light-dark(#DCE2EA,#24314A);--green:light-dark(#1E6B52,#52B48D);--on-green:light-dark(#fff,#07160F);
+--green-soft:light-dark(#E2F0EA,#163428);--brass:light-dark(#9A6A1C,#E1AF52);--brass-soft:light-dark(#F6ECD8,#362B16);
+--band:light-dark(rgba(30,107,82,.18),rgba(82,180,141,.22))}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,sans-serif;overflow-x:clip}
+button,select,input{font:inherit;color:inherit}
+.num,h1,h2{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+header{padding:clamp(24px,4vw,48px) 0 18px}
+.brand{font-weight:600;font-size:14px;color:var(--green);display:flex;align-items:center;gap:8px}
+.brand svg{width:20px;height:20px}
+h1{font-size:clamp(32px,5vw,48px);line-height:1.05;font-weight:600;margin:10px 0 0;text-wrap:balance;letter-spacing:-.4px}
+.sub{color:var(--ink2);margin:10px 0 0;max-width:68ch}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end}
+.fld{display:grid;gap:6px}
+.lab{font-size:13px;color:var(--ink3);font-weight:500}
+.seg{display:flex;flex-wrap:wrap;gap:4px;padding:3px;background:var(--sunk);border-radius:12px}
+.seg button{border:0;background:none;border-radius:9px;min-height:40px;padding:0 14px;font-size:15px;font-weight:600;color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.14)}
+select,input[type=search]{min-height:44px;border:1px solid var(--line);background:var(--card);border-radius:11px;padding:0 12px;font-size:16px}
+input[type=search]{width:min(320px,100%)}
+.chk{display:flex;align-items:center;gap:8px;min-height:44px;font-size:15px;cursor:pointer}
+.chk input{width:20px;height:20px;accent-color:var(--green)}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.hint{font-size:14px;color:var(--ink2);margin:0}
+.dim{color:var(--ink3);font-weight:400}
+.picks{display:flex;flex-wrap:wrap;gap:7px}
+.pick{min-height:38px;padding:0 12px;border-radius:19px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.pick b{font-family:"IBM Plex Sans Condensed",sans-serif;color:var(--ink3);font-weight:600}
+.pick[aria-pressed=true]{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.pick[aria-pressed=true] b{color:var(--on-green);opacity:.8}
+.pick.ghost{border-style:dashed;color:var(--ink2)}
+.seg button b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;color:var(--ink3);margin-left:6px}
+.seg button[aria-pressed=true] b{color:var(--green)}
+.bar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:22px 0 12px;color:var(--ink2);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px;padding-bottom:28px}
+.t{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.ph{position:relative;height:116px;background:var(--sunk)}
+.ph svg.art{display:block;width:100%;height:100%}
+:root[data-theme=dark] .ph svg.art{filter:brightness(.84) saturate(.86)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .ph svg.art{filter:brightness(.84) saturate(.86)}}
+.ph .kind{position:absolute;left:10px;bottom:10px;padding:3px 9px;border-radius:9px;background:rgba(255,255,255,.88);color:#14213D;font-size:12px;font-weight:600;letter-spacing:.1px}
+.tb{padding:14px 18px 14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.t h3{margin:0;font-size:17px;line-height:1.3;font-weight:600}
+.where{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--ink2)}
+.figs{display:flex;gap:16px;align-items:flex-end}
+.mult b{display:block;font:700 36px/1 "IBM Plex Sans Condensed",sans-serif;letter-spacing:-.5px}
+.mult span{display:block;font-size:12.5px;color:var(--ink3);margin-top:4px;white-space:nowrap}
+.mult.in b{color:var(--green)}.mult.out b{color:var(--brass)}.mult.none b{color:var(--ink3);font-size:24px}
+.money{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+.money span{display:block;font-size:12.5px;color:var(--ink3)}
+.money b{display:block;font:600 18px/1.2 "IBM Plex Sans Condensed",sans-serif;white-space:nowrap}
+.money b.dim{color:var(--ink3);font-weight:500}
+.gauge{position:relative;height:28px}
+.gauge .tr{position:absolute;left:0;right:0;top:6px;height:6px;border-radius:3px;background:var(--sunk)}
+.gauge .bd{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--band)}
+.gauge .pin{position:absolute;top:-5px;width:4px;height:16px;margin-left:-2px;border-radius:2px;background:var(--brass);box-shadow:0 0 0 2px var(--card)}
+.gauge.in .pin{background:var(--green)}
+.gauge i{position:absolute;top:15px;transform:translateX(-50%);font:500 12px "IBM Plex Sans Condensed",sans-serif;font-style:normal;color:var(--ink3)}
+.desc{margin:0;font-size:14.5px;color:var(--ink2)}
+.foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.score{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px 0 4px;border-radius:13px;font-size:13px;font-weight:600}
+.score i{font-style:normal;min-width:20px;height:20px;padding:0 4px;border-radius:10px;font:700 12.5px/20px "IBM Plex Sans Condensed",sans-serif;text-align:center}
+.s-great,.s-good{background:var(--green-soft);color:var(--green)}.s-great i,.s-good i{background:var(--green);color:var(--on-green)}
+.s-fair{background:var(--brass-soft);color:var(--brass)}.s-fair i{background:var(--brass);color:#fff}
+.s-weak,.s-none{background:var(--sunk);color:var(--ink2)}.s-weak i{background:var(--ink3);color:#fff}
+.s-none{padding:0 10px}
+.when{font-size:13px;color:var(--ink3)}
+.acts{display:flex;gap:8px;margin-left:auto}
+.lnk{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:12px;background:var(--green);color:var(--on-green);font-weight:600;font-size:14.5px;text-decoration:none;white-space:nowrap}
+.lnk.alt{background:none;color:var(--green);border:1px solid var(--line)}
+.heart{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:none;cursor:pointer;display:grid;place-items:center;color:var(--ink2)}
+.ph .heart{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:19px;border:0;background:rgba(255,255,255,.9);color:#14213D;box-shadow:0 1px 4px rgba(20,33,61,.18)}
+.heart svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
+.heart[aria-pressed=true]{color:#C2412F}.heart[aria-pressed=true] svg{fill:currentColor}
+.empty{grid-column:1/-1;text-align:center;padding:48px 16px;color:var(--ink2)}
+.empty h2{font-size:24px;color:var(--ink);margin:0 0 8px;font-weight:600}
+.note{font-size:13px;color:var(--ink3);border-top:1px solid var(--line);padding:18px 0 40px;margin:0;max-width:80ch}
+.more{display:block;margin:0 auto 28px;min-height:44px;padding:0 22px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;cursor:pointer}
+@media(max-width:600px){header{padding:22px 0 14px}.panel{padding:12px;gap:10px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.row .fld:has(.seg),.row .wide{grid-column:1/-1}
+select,input[type=search]{width:100%}
+.seg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}
+.seg button{flex:1 0 auto;padding:0 12px;white-space:nowrap}
+.chk{align-self:end}.hint{font-size:13.5px}}
+@media(prefers-reduced-motion:no-preference){.t{animation:up .3s ease both}@keyframes up{from{opacity:0;transform:translateY(6px)}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/></svg>Deal Scout Daily</div>
+  <h1 id="title">Loading today’s listings</h1>
+  <p class="sub" id="sub">New businesses for sale from BizBuySell, priced against their cash flow.</p>
+</header>
+
+<section class="panel" aria-label="Filters">
+  <div class="row">
+    <div class="fld"><span class="lab" id="l-days">Listed</span><div class="seg" id="days" role="group" aria-labelledby="l-days"></div></div>
+    <div class="fld"><span class="lab" id="l-q">Deal quality</span><div class="seg" id="quality" role="group" aria-labelledby="l-q"></div></div>
+  </div>
+  <p class="hint" id="qhint"></p>
+  <div class="fld"><span class="lab" id="l-st">States <span class="dim" id="stnote"></span></span><div class="picks" id="states" role="group" aria-labelledby="l-st"></div></div>
+  <div class="row">
+    <label class="fld"><span class="lab">Highest asking price</span><select id="max"></select></label>
+    <label class="fld"><span class="lab">Sort by</span><select id="sort">
+      <option value="score">Best deal score</option><option value="new">Newest first</option>
+      <option value="mult">Lowest multiple</option><option value="cf">Highest cash flow</option><option value="price">Lowest price</option></select></label>
+    <label class="chk"><input type="checkbox" id="savedOnly">Only my saved</label>
+    <label class="fld wide"><span class="lab">Search</span><input id="q" type="search" placeholder="HVAC, laundromat, Dallas…" autocomplete="off"></label>
+  </div>
+</section>
+
+<div class="bar"><span id="count"></span><span id="updated"></span></div>
+<div class="grid" id="grid" aria-live="polite"></div>
+<button class="more" id="more" hidden>Show more</button>
+<p class="note">Listings come from BizBuySell. The day ranges cover the “recently listed” feed, dated from when Deal Scout first saw it there. “Anytime” also includes listings already on the market, whose posting date isn’t known; those are marked “On the market”. Asking price, cash flow and revenue are the seller’s or broker’s claims; check them against tax returns before making an offer. Cash flow is usually seller’s discretionary earnings (SDE). The picture on each card is a drawing of that kind of business, not a photo of the business itself: the listing sites’ own photos can’t be shown here. Hearts are saved in this browser only. Deal Scout isn’t affiliated with BizBuySell.</p>
+</div>
+
+<script src="art.js"></script>
+<script>
+{
+const DAY = 864e5;
+const PRESETS = {
+  great: {name:'Great deals', min:2, max:4, cf:150000, hint:'Priced at 2–4× cash flow, with at least $150K a year in cash flow.'},
+  value: {name:'Best value', min:2, max:3, cf:150000, hint:'Priced at 2–3× cash flow, with at least $150K a year in cash flow.'},
+  cows:  {name:'Cash cows', min:2, max:4, cf:300000, hint:'At least $300K a year in cash flow, priced at 2–4×.'},
+  all:   {name:'Everything', min:0, max:99, cf:0, hint:'Every new listing, including ones that don’t show their price or cash flow.'}
+};
+const DAYS = [[1,'Today'],[2,'2 days'],[4,'4 days'],[7,'7 days'],[30,'30 days'],[0,'Anytime']];
+const MAXES = [[0,'No limit'],[250e3,'$250K'],[500e3,'$500K'],[750e3,'$750K'],[1e6,'$1M'],[1.5e6,'$1.5M'],[2e6,'$2M'],[3e6,'$3M'],[5e6,'$5M']];
+const STATES = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'Washington DC',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('ds.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  put(k, v) { try { localStorage.setItem('ds.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+const F = Object.assign({days:1, quality:'great', states:[], max:0, sort:'score', q:'', savedOnly:false}, store.get('filters', {}));
+F.q = '';
+if (!Array.isArray(F.states)) F.states = [];
+if (F.state) { if (F.states.indexOf(F.state) < 0) F.states.push(F.state); delete F.state; }
+let showAllStates = false;
+let saved = new Set(store.get('saved', []));
+let all = [], meta = null, shown = 60, loaded = false;
+let feed = [], stock = [], dbReady = null;
+function merge() {
+  const seen = new Set(), out = [];
+  feed.concat(stock).forEach((l) => { if (l.title && !seen.has(l.id)) { seen.add(l.id); out.push(l); } });
+  all = out;
+  loaded = true;
+  render();
+}
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = (v) => { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
+const money = (v) => !v ? '' : v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + 'M' : v >= 1e3 ? '$' + Math.round(v / 1e3) + 'K' : '$' + Math.round(v);
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+
+function stateOf(loc) {
+  const m = String(loc || '').match(/,\s*([A-Z]{2})\s*$/);
+  if (m && STATES[m[1]]) return m[1];
+  let best = '', len = 0;
+  for (const k in STATES) { const n = STATES[k]; if (n.length > len && new RegExp('\\b' + n + '\\b', 'i').test(loc || '')) { best = k; len = n.length; } }
+  return best;
+}
+function score(l) {
+  if (!l.m) return null;
+  const m = l.m;
+  const mp = m < 1 ? 18 : m < 1.5 ? 32 : m <= 2.5 ? 45 : m <= 3 ? 45 - (m - 2.5) * 10 : m <= 4 ? 40 - (m - 3) * 16 : m <= 5 ? 24 - (m - 4) * 14 : Math.max(0, 10 - (m - 5) * 5);
+  const cp = Math.max(0, Math.min(30, 30 * Math.log10(l.cashFlow / 50000)));
+  const g = l.revenue ? l.cashFlow / l.revenue : 0;
+  const gp = !g ? 5 : g < .08 ? 2 : g < .12 ? 6 : g < .18 ? 10 : g <= .45 ? 15 : g <= .65 ? 11 : 5;
+  const info = (l.revenue ? 3 : 0) + (l.summary.length > 60 ? 3 : 0) + (l.location ? 2 : 0);
+  return Math.max(0, Math.min(100, Math.round(mp + cp + gp + info)));
+}
+const grade = (s) => s == null ? ['none','Not rated'] : s >= 80 ? ['great','Great'] : s >= 65 ? ['good','Good'] : s >= 50 ? ['fair','Fair'] : ['weak','Weak'];
+function passes(l, id) {
+  const p = PRESETS[id];
+  if (id === 'all') return true;
+  return l.m >= p.min && l.m <= p.max && l.cashFlow >= p.cf;
+}
+function normalize(x, day) {
+  const l = {
+    id: String(x.id || ''), title: String(x.title || '').trim(), location: String(x.location || '').trim(),
+    price: num(x.price), cashFlow: num(x.cashFlow), revenue: num(x.revenue), summary: String(x.summary || '').trim(),
+    seenAt: num(x.seenAt) || Date.parse(day + 'T12:00:00Z') || 0, url: String(x.url || '')
+  };
+  l.state = /^[A-Z]{2}$/.test(x.state || '') ? x.state : stateOf(l.location);
+  l.dated = x.dated !== false;
+  l.m = l.price && l.cashFlow ? l.price / l.cashFlow : 0;
+  l.s = score(l);
+  return l;
+}
+function link(l) {
+  if (/^https:\/\/([a-z]+\.)?bizbuysell\.com\//.test(l.url)) return [l.url, 'Open listing'];
+  const k = l.title.replace(/[^\x20-\x7E]/g, ' ').replace(/\s+/g, ' ').trim();
+  return ['https://www.bizbuysell.com/businesses-for-sale/?q=' + encodeURIComponent(btoa('k=' + k)), 'Find on BizBuySell'];
+}
+
+function startOf(daysBack) { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() - (daysBack - 1) * DAY; }
+function whenText(t, dated) {
+  if (!dated) return 'On the market';
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const diff = Math.floor((d0.getTime() - new Date(t).setHours(0, 0, 0, 0)) / DAY);
+  const time = new Date(t).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+  return diff <= 0 ? 'Listed today, ' + time : diff === 1 ? 'Listed yesterday' : 'Listed ' + new Date(t).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+function gauge(l, p) {
+  const SC = 6, pct = (x) => Math.max(0, Math.min(100, x / SC * 100));
+  const band = p !== 'all', P = PRESETS[p];
+  const inb = band && l.m >= P.min && l.m <= P.max;
+  const at = Math.max(1.5, Math.min(98.5, pct(l.m)));
+  return '<div class="gauge' + (inb ? ' in' : '') + '" role="img" aria-label="Price is ' + l.m.toFixed(1) + ' times cash flow"><div class="tr">' +
+    (band ? '<div class="bd" style="left:' + pct(P.min) + '%;right:' + (100 - pct(P.max)) + '%"></div>' : '') +
+    '<div class="pin" style="left:' + at + '%"></div></div>' +
+    (band ? '<i style="left:' + pct(P.min) + '%">' + P.min + '×</i><i style="left:' + pct(P.max) + '%">' + P.max + '×</i>' : '<i style="left:2%">0×</i><i style="left:96%">6×+</i>') + '</div>';
+}
+function ticket(l) {
+  const ok = F.quality !== 'all' && passes(l, F.quality);
+  const cls = !l.m ? 'none' : F.quality === 'all' ? '' : ok ? 'in' : 'out';
+  const [gk, gl] = grade(l.s);
+  const fig = (lab, v) => '<div><span>' + lab + '</span><b class="' + (v ? '' : 'dim') + '">' + (v ? money(v) : 'Not listed') + '</b></div>';
+  const [href, ltxt] = link(l);
+  const isSaved = saved.has(l.id);
+  const heart = '<button class="heart" data-id="' + esc(l.id) + '" aria-pressed="' + isSaved + '" aria-label="' + (isSaved ? 'Remove from saved' : 'Save') + '"><svg viewBox="0 0 24 24"><path d="M12 20.2s-7.2-4.5-7.2-10.1A4.1 4.1 0 0 1 12 7.4a4.1 4.1 0 0 1 7.2 2.7c0 5.6-7.2 10.1-7.2 10.1z"/></svg></button>';
+  const kind = window.Art ? window.Art.art(l.title, l.summary) : '';
+  const band = kind ? '<div class="ph">' + window.Art.scene(kind) + heart + '</div>' : '';
+  return '<article class="t">' + band + '<div class="tb"><h3>' + esc(l.title) + '</h3>' +
+    '<div class="where"><span>' + esc(l.location || STATES[l.state] || 'Location not given') + '</span><span>BizBuySell</span></div>' +
+    '<div class="figs"><div class="mult ' + cls + '"><b class="num">' + (l.m ? (l.m >= 10 ? Math.round(l.m) : l.m.toFixed(1)) + '×' : '—') + '</b><span>' + (l.m ? 'price to cash flow' : 'no cash flow listed') + '</span></div>' +
+    '<div class="money">' + fig('Asking', l.price) + fig('Cash flow', l.cashFlow) + '</div></div>' +
+    (l.m ? gauge(l, F.quality) : '') +
+    (l.summary ? '<p class="desc">' + esc(l.summary) + '</p>' : '') +
+    '<div class="foot"><span class="score s-' + gk + '">' + (l.s == null ? '' : '<i>' + l.s + '</i>') + esc(gl) + '</span><span class="when">' + esc(whenText(l.seenAt, l.dated)) + '</span>' +
+    '<span class="acts"><a class="lnk" href="' + esc(href) + '" target="_blank" rel="noopener">' + ltxt + '</a></span></div></div></article>';
+}
+
+function controls() {
+  const q = F.q.trim().toLowerCase();
+  $('days').innerHTML = DAYS.map(([v, t]) => {
+    const n = all.filter((l) => inRange(l, v) && inStates(l, F.states) && inPrice(l) && passes(l, F.quality) && matchesQ(l, q)).length;
+    return '<button data-k="days" data-v="' + v + '" aria-pressed="' + (F.days === v) + '">' + t + '<b>' + n + '</b></button>';
+  }).join('');
+  $('quality').innerHTML = Object.keys(PRESETS).map((k) => {
+    const n = all.filter((l) => inRange(l, F.days) && inStates(l, F.states) && inPrice(l) && passes(l, k) && matchesQ(l, q)).length;
+    return '<button data-k="quality" data-v="' + k + '" aria-pressed="' + (F.quality === k) + '">' + PRESETS[k].name + '<b>' + n + '</b></button>';
+  }).join('');
+  $('qhint').textContent = PRESETS[F.quality].hint;
+
+  const counts = {};
+  all.forEach((l) => { if (l.state && inRange(l, F.days) && inPrice(l)) counts[l.state] = (counts[l.state] || 0) + 1; });
+  const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || STATES[a].localeCompare(STATES[b]));
+  F.states.forEach((k) => { if (keys.indexOf(k) < 0) keys.push(k); });
+  const LIMIT = 12, hidden = Math.max(0, keys.length - LIMIT);
+  const shownKeys = showAllStates ? keys.slice() : keys.slice(0, LIMIT);
+  F.states.forEach((k) => { if (shownKeys.indexOf(k) < 0) shownKeys.push(k); });
+  $('states').innerHTML =
+    '<button class="pick" data-act="states-all" aria-pressed="' + (F.states.length === 0) + '">All states</button>' +
+    shownKeys.map((k) => '<button class="pick" data-act="state" data-v="' + k + '" aria-pressed="' + (F.states.indexOf(k) >= 0) + '">' +
+      STATES[k] + '<b>' + (counts[k] || 0) + '</b></button>').join('') +
+    (hidden && !showAllStates ? '<button class="pick ghost" data-act="states-more">+' + hidden + ' more</button>' : '') +
+    (showAllStates && hidden ? '<button class="pick ghost" data-act="states-less">Show fewer</button>' : '');
+  $('stnote').textContent = F.states.length ? '(' + F.states.length + ' selected, tap to add or remove)' : '(tap to pick one or more)';
+
+  $('max').innerHTML = MAXES.map(([v, t]) => '<option value="' + v + '"' + (F.max === v ? ' selected' : '') + '>' + t + '</option>').join('');
+  $('sort').value = F.sort;
+  $('savedOnly').checked = F.savedOnly;
+}
+
+function inRange(l, days) {
+  if (days === 0) return true;          // Anytime: also listings already on the market
+  return l.dated && l.seenAt >= startOf(days);
+}
+function inStates(l, states) { return !states.length || states.indexOf(l.state) >= 0; }
+function inPrice(l) { return !F.max || !l.price || l.price <= F.max; }
+function matchesQ(l, q) {
+  return !q || q.split(/\s+/).every((w) => (l.title + ' ' + l.location + ' ' + l.summary).toLowerCase().includes(w));
+}
+
+function render() {
+  controls();
+  store.put('filters', F);
+  if (!loaded) return;
+  const q = F.q.trim().toLowerCase();
+  const inWindow = all.filter((l) => inRange(l, F.days) && inStates(l, F.states) && inPrice(l));
+  let list = inWindow.filter((l) => passes(l, F.quality) && (!F.savedOnly || saved.has(l.id)) && matchesQ(l, q));
+  const miss = (a, b, asc) => a && b ? (asc ? a - b : b - a) : a ? -1 : b ? 1 : 0;
+  const by = {score: (a, b) => ((b.s ?? -1) - (a.s ?? -1)) || b.seenAt - a.seenAt, new: (a, b) => b.seenAt - a.seenAt,
+    mult: (a, b) => miss(a.m, b.m, true), cf: (a, b) => miss(a.cashFlow, b.cashFlow, false), price: (a, b) => miss(a.price, b.price, true)}[F.sort];
+  list.sort(by);
+  const span = F.days === 0 ? 'on the market' : F.days === 1 ? 'listed today' : 'listed in the last ' + F.days + ' days';
+  const where = !F.states.length ? '' : F.states.length <= 2 ? ' in ' + F.states.map((k) => STATES[k]).join(' and ')
+    : ' in ' + F.states.length + ' states';
+  const nouns = {great: ['great deal', 'great deals'], value: ['best-value deal', 'best-value deals'], cows: ['cash cow', 'cash cows'], all: ['business', 'businesses']}[F.quality];
+  $('title').textContent = list.length + ' ' + nouns[list.length === 1 ? 0 : 1] + ' ' + span + where;
+  $('sub').textContent = 'Out of ' + plural(inWindow.length, 'listing') + ' ' + span + where +
+    (F.max ? ' at ' + money(F.max) + ' or less' : '') + '. Each one is priced against its cash flow.';
+  $('count').textContent = plural(list.length, 'listing') + (F.savedOnly ? ' saved' : '');
+  if (!list.length) {
+    $('grid').innerHTML = '<div class="empty"><h2>' + (all.length ? 'Nothing here yet' : 'The first listings are on their way') + '</h2><p>' +
+      (all.length ? (inWindow.length ? 'None of the ' + plural(inWindow.length, 'listing') + ' fit “' + PRESETS[F.quality].name + '”. Try Everything, or widen the range.' : 'Nothing ' + span + where + '. Try Anytime, which also shows listings already on the market.') : 'No listings loaded yet.') + '</p></div>';
+    $('more').hidden = true;
+    return;
+  }
+  $('grid').innerHTML = list.slice(0, shown).map(ticket).join('');
+  $('more').hidden = list.length <= shown;
+  $('more').textContent = 'Show ' + Math.min(60, list.length - shown) + ' more';
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-k]');
+  if (b) { F[b.dataset.k] = b.dataset.k === 'days' ? Number(b.dataset.v) : b.dataset.v; shown = 60; render(); return; }
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    const act = a.dataset.act;
+    if (act === 'state') {
+      const k = a.dataset.v, i = F.states.indexOf(k);
+      if (i >= 0) F.states.splice(i, 1); else F.states.push(k);
+      shown = 60; render();
+    } else if (act === 'states-all') { F.states = []; shown = 60; render(); }
+    else if (act === 'states-more') { showAllStates = true; controls(); }
+    else if (act === 'states-less') { showAllStates = false; controls(); }
+    return;
+  }
+  const h = e.target.closest('.heart');
+  if (h) {
+    const id = h.dataset.id;
+    saved.has(id) ? saved.delete(id) : saved.add(id);
+    store.put('saved', Array.from(saved));
+    h.setAttribute('aria-pressed', saved.has(id));
+    h.setAttribute('aria-label', saved.has(id) ? 'Remove from saved' : 'Save');
+    if (F.savedOnly) render();
+  }
+});
+$('max').addEventListener('change', (e) => { F.max = Number(e.target.value); shown = 60; render(); });
+$('sort').addEventListener('change', (e) => { F.sort = e.target.value; render(); });
+$('savedOnly').addEventListener('change', (e) => { F.savedOnly = e.target.checked; render(); });
+let qt = 0;
+$('q').addEventListener('input', (e) => { clearTimeout(qt); qt = setTimeout(() => { F.q = e.target.value; shown = 60; render(); }, 200); });
+$('more').addEventListener('click', () => { shown += 60; render(); });
+
+function showUpdated() {
+  if (!meta || !meta.updatedAt) { $('updated').textContent = ''; return; }
+  const t = new Date(meta.updatedAt);
+  const today = new Date().toDateString() === t.toDateString();
+  $('updated').textContent = 'Updated ' + (today ? t.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}) : t.toLocaleDateString('en-US', {month:'short', day:'numeric'}));
+}
+
+render();
+fetch('data.json').then((r) => r.ok ? r.json() : null).then((j) => {
+  if (!j || !Array.isArray(j.listings)) throw new Error('no data');
+  feed = j.listings.filter((x) => x.dated).map((x) => normalize(x, ''));
+  stock = j.listings.filter((x) => !x.dated).map((x) => normalize(x, ''));
+  meta = { updatedAt: j.updatedAt };
+  showUpdated();
+  merge();
+}).catch(() => {
+  $('title').textContent = 'The listings could not be loaded';
+  $('sub').textContent = 'Reload the page to try again.';
+});
+(async () => {
+  if (!window.claude || !window.claude.use) return;
+  const db = await window.claude.use('db');
+  dbReady = !!db;
+  if (!db) {
+    if (!loaded) {
+      $('title').textContent = 'Sign in to Claude to see the listings';
+      $('sub').textContent = 'This page reads today’s new listings from Claude. Open the link while signed in to a Claude account; a free one works.';
+    }
+    return;
+  }
+  const timer = setTimeout(() => { if (!loaded) $('sub').textContent = 'The listings can’t be reached right now. They’ll appear once the connection returns.'; }, 10000);
+  const read = (snap, dated) => {
+    const out = [];
+    snap.docs.forEach((d) => {
+      const body = d.data() || {};
+      (Array.isArray(body.listings) ? body.listings : []).forEach((x) => {
+        const row = dated && x.dated === undefined ? Object.assign({}, x, { dated: true }) : x;
+        out.push(normalize(row, String(body.day || d.id)));
+      });
+    });
+    return out;
+  };
+  const fail = () => { clearTimeout(timer); if (!loaded) $('sub').textContent = 'The listings couldn’t be loaded. Reload the page to try again.'; };
+  db.collection('days').orderBy('day', 'desc').limit(31).onSnapshot((snap) => {
+    feed = read(snap, true);
+    if (!snap.metadata.fromCache) clearTimeout(timer);
+    merge();
+  }, fail);
+  db.doc('meta/status').onSnapshot((d) => { meta = d.exists ? d.data() : null; showUpdated(); }, () => {});
+})();
+}
+</script>
+</body>
+</html>

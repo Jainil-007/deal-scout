@@ -117,9 +117,7 @@ select,input[type=search]{width:100%}
 <section class="panel" aria-label="Filters">
   <div class="row">
     <div class="fld"><span class="lab" id="l-days">Listed</span><div class="seg" id="days" role="group" aria-labelledby="l-days"></div></div>
-    <div class="fld"><span class="lab" id="l-q">Deal quality</span><div class="seg" id="quality" role="group" aria-labelledby="l-q"></div></div>
   </div>
-  <p class="hint" id="qhint"></p>
   <div class="fld"><span class="lab" id="l-st">States <span class="dim" id="stnote"></span></span><div class="picks" id="states" role="group" aria-labelledby="l-st"></div></div>
   <div class="row">
     <label class="fld"><span class="lab">Highest asking price</span><select id="max"></select></label>
@@ -141,12 +139,7 @@ select,input[type=search]{width:100%}
 <script>
 {
 const DAY = 864e5;
-const PRESETS = {
-  great: {name:'Great deals', min:2, max:4, cf:150000, hint:'Priced at 2–4× cash flow, with at least $150K a year in cash flow.'},
-  value: {name:'Best value', min:2, max:3, cf:150000, hint:'Priced at 2–3× cash flow, with at least $150K a year in cash flow.'},
-  cows:  {name:'Cash cows', min:2, max:4, cf:300000, hint:'At least $300K a year in cash flow, priced at 2–4×.'},
-  all:   {name:'Everything', min:0, max:99, cf:0, hint:'Every new listing, including ones that don’t show their price or cash flow.'}
-};
+const TARGET = { min: 2, max: 4 };   // the price-to-cash-flow range worth a closer look
 const DAYS = [[1,'Today'],[2,'2 days'],[4,'4 days'],[7,'7 days'],[30,'30 days'],[0,'Anytime']];
 const MAXES = [[0,'No limit'],[250e3,'$250K'],[500e3,'$500K'],[750e3,'$750K'],[1e6,'$1M'],[1.5e6,'$1.5M'],[2e6,'$2M'],[3e6,'$3M'],[5e6,'$5M']];
 const STATES = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'Washington DC',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
@@ -155,10 +148,12 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('ds.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   put(k, v) { try { localStorage.setItem('ds.' + k, JSON.stringify(v)); } catch (e) {} }
 };
-const F = Object.assign({days:1, quality:'great', states:[], max:0, sort:'score', q:'', savedOnly:false}, store.get('filters', {}));
+const F = Object.assign({days:1, states:[], max:0, sort:'score', q:'', savedOnly:false}, store.get('filters', {}));
 F.q = '';
 if (!Array.isArray(F.states)) F.states = [];
 if (F.state) { if (F.states.indexOf(F.state) < 0) F.states.push(F.state); delete F.state; }
+delete F.quality;
+if (['score','new','mult','cf','price'].indexOf(F.sort) < 0) F.sort = 'score';
 let showAllStates = false;
 let saved = new Set(store.get('saved', []));
 let all = [], meta = null, shown = 60, loaded = false;
@@ -194,11 +189,6 @@ function score(l) {
   return Math.max(0, Math.min(100, Math.round(mp + cp + gp + info)));
 }
 const grade = (s) => s == null ? ['none','Not rated'] : s >= 80 ? ['great','Great'] : s >= 65 ? ['good','Good'] : s >= 50 ? ['fair','Fair'] : ['weak','Weak'];
-function passes(l, id) {
-  const p = PRESETS[id];
-  if (id === 'all') return true;
-  return l.m >= p.min && l.m <= p.max && l.cashFlow >= p.cf;
-}
 function normalize(x, day) {
   const l = {
     id: String(x.id || ''), title: String(x.title || '').trim(), location: String(x.location || '').trim(),
@@ -226,10 +216,10 @@ function whenText(t, dated) {
   return diff <= 0 ? 'Listed today, ' + time : diff === 1 ? 'Listed yesterday' : 'Listed ' + new Date(t).toLocaleDateString('en-US', {month:'short', day:'numeric'});
 }
 
-function gauge(l, p) {
+function gauge(l) {
   const SC = 6, pct = (x) => Math.max(0, Math.min(100, x / SC * 100));
-  const band = p !== 'all', P = PRESETS[p];
-  const inb = band && l.m >= P.min && l.m <= P.max;
+  const band = true, P = TARGET;
+  const inb = l.m >= P.min && l.m <= P.max;
   const at = Math.max(1.5, Math.min(98.5, pct(l.m)));
   return '<div class="gauge' + (inb ? ' in' : '') + '" role="img" aria-label="Price is ' + l.m.toFixed(1) + ' times cash flow"><div class="tr">' +
     (band ? '<div class="bd" style="left:' + pct(P.min) + '%;right:' + (100 - pct(P.max)) + '%"></div>' : '') +
@@ -237,8 +227,7 @@ function gauge(l, p) {
     (band ? '<i style="left:' + pct(P.min) + '%">' + P.min + '×</i><i style="left:' + pct(P.max) + '%">' + P.max + '×</i>' : '<i style="left:2%">0×</i><i style="left:96%">6×+</i>') + '</div>';
 }
 function ticket(l) {
-  const ok = F.quality !== 'all' && passes(l, F.quality);
-  const cls = !l.m ? 'none' : F.quality === 'all' ? '' : ok ? 'in' : 'out';
+  const cls = !l.m ? 'none' : (l.m >= TARGET.min && l.m <= TARGET.max) ? 'in' : 'out';
   const [gk, gl] = grade(l.s);
   const fig = (lab, v) => '<div><span>' + lab + '</span><b class="' + (v ? '' : 'dim') + '">' + (v ? money(v) : 'Not listed') + '</b></div>';
   const [href, ltxt] = link(l);
@@ -250,7 +239,7 @@ function ticket(l) {
     '<div class="where"><span>' + esc(l.location || STATES[l.state] || 'Location not given') + '</span><span>BizBuySell</span></div>' +
     '<div class="figs"><div class="mult ' + cls + '"><b class="num">' + (l.m ? (l.m >= 10 ? Math.round(l.m) : l.m.toFixed(1)) + '×' : '—') + '</b><span>' + (l.m ? 'price to cash flow' : 'no cash flow listed') + '</span></div>' +
     '<div class="money">' + fig('Asking', l.price) + fig('Cash flow', l.cashFlow) + '</div></div>' +
-    (l.m ? gauge(l, F.quality) : '') +
+    (l.m ? gauge(l) : '') +
     (l.summary ? '<p class="desc">' + esc(l.summary) + '</p>' : '') +
     '<div class="foot"><span class="score s-' + gk + '">' + (l.s == null ? '' : '<i>' + l.s + '</i>') + esc(gl) + '</span><span class="when">' + esc(whenText(l.seenAt, l.dated)) + '</span>' +
     '<span class="acts"><a class="lnk" href="' + esc(href) + '" target="_blank" rel="noopener">' + ltxt + '</a></span></div></div></article>';
@@ -259,14 +248,9 @@ function ticket(l) {
 function controls() {
   const q = F.q.trim().toLowerCase();
   $('days').innerHTML = DAYS.map(([v, t]) => {
-    const n = all.filter((l) => inRange(l, v) && inStates(l, F.states) && inPrice(l) && passes(l, F.quality) && matchesQ(l, q)).length;
+    const n = all.filter((l) => inRange(l, v) && inStates(l, F.states) && inPrice(l) && matchesQ(l, q)).length;
     return '<button data-k="days" data-v="' + v + '" aria-pressed="' + (F.days === v) + '">' + t + '<b>' + n + '</b></button>';
   }).join('');
-  $('quality').innerHTML = Object.keys(PRESETS).map((k) => {
-    const n = all.filter((l) => inRange(l, F.days) && inStates(l, F.states) && inPrice(l) && passes(l, k) && matchesQ(l, q)).length;
-    return '<button data-k="quality" data-v="' + k + '" aria-pressed="' + (F.quality === k) + '">' + PRESETS[k].name + '<b>' + n + '</b></button>';
-  }).join('');
-  $('qhint').textContent = PRESETS[F.quality].hint;
 
   const counts = {};
   all.forEach((l) => { if (l.state && inRange(l, F.days) && inPrice(l)) counts[l.state] = (counts[l.state] || 0) + 1; });
@@ -304,7 +288,7 @@ function render() {
   if (!loaded) return;
   const q = F.q.trim().toLowerCase();
   const inWindow = all.filter((l) => inRange(l, F.days) && inStates(l, F.states) && inPrice(l));
-  let list = inWindow.filter((l) => passes(l, F.quality) && (!F.savedOnly || saved.has(l.id)) && matchesQ(l, q));
+  let list = inWindow.filter((l) => (!F.savedOnly || saved.has(l.id)) && matchesQ(l, q));
   const miss = (a, b, asc) => a && b ? (asc ? a - b : b - a) : a ? -1 : b ? 1 : 0;
   const by = {score: (a, b) => ((b.s ?? -1) - (a.s ?? -1)) || b.seenAt - a.seenAt, new: (a, b) => b.seenAt - a.seenAt,
     mult: (a, b) => miss(a.m, b.m, true), cf: (a, b) => miss(a.cashFlow, b.cashFlow, false), price: (a, b) => miss(a.price, b.price, true)}[F.sort];
@@ -312,14 +296,18 @@ function render() {
   const span = F.days === 0 ? 'on the market' : F.days === 1 ? 'listed today' : 'listed in the last ' + F.days + ' days';
   const where = !F.states.length ? '' : F.states.length <= 2 ? ' in ' + F.states.map((k) => STATES[k]).join(' and ')
     : ' in ' + F.states.length + ' states';
-  const nouns = {great: ['great deal', 'great deals'], value: ['best-value deal', 'best-value deals'], cows: ['cash cow', 'cash cows'], all: ['business', 'businesses']}[F.quality];
-  $('title').textContent = list.length + ' ' + nouns[list.length === 1 ? 0 : 1] + ' ' + span + where;
-  $('sub').textContent = 'Out of ' + plural(inWindow.length, 'listing') + ' ' + span + where +
-    (F.max ? ' at ' + money(F.max) + ' or less' : '') + '. Each one is priced against its cash flow.';
+  const scored = list.filter((l) => l.s != null);
+  const inBand = list.filter((l) => l.m >= TARGET.min && l.m <= TARGET.max).length;
+  $('title').textContent = list.length + (list.length === 1 ? ' business ' : ' businesses ') + span + where;
+  $('sub').textContent = (scored.length
+      ? inBand + ' of them are priced at ' + TARGET.min + '\u2013' + TARGET.max + '\u00d7 cash flow'
+        + (scored.length < list.length ? ', and ' + (list.length - scored.length) + ' don\u2019t show enough numbers to score' : '')
+      : 'None of them show both a price and a cash flow, so they can\u2019t be scored')
+    + (F.max ? ', at ' + money(F.max) + ' or less' : '') + '. Best score first.';
   $('count').textContent = plural(list.length, 'listing') + (F.savedOnly ? ' saved' : '');
   if (!list.length) {
-    $('grid').innerHTML = '<div class="empty"><h2>' + (all.length ? 'Nothing here yet' : 'The first listings are on their way') + '</h2><p>' +
-      (all.length ? (inWindow.length ? 'None of the ' + plural(inWindow.length, 'listing') + ' fit “' + PRESETS[F.quality].name + '”. Try Everything, or widen the range.' : 'Nothing ' + span + where + '. Try Anytime, which also shows listings already on the market.') : 'No listings loaded yet.') + '</p></div>';
+    $('grid').innerHTML = '<div class="empty"><h2>' + (all.length ? 'Nothing matches these filters' : 'The first listings are on their way') + '</h2><p>' +
+      (all.length ? 'Nothing ' + span + where + '. Try Anytime, which also shows listings already on the market, or pick more states.' : 'No listings loaded yet.') + '</p></div>';
     $('more').hidden = true;
     return;
   }
